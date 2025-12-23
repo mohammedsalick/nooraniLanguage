@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Noorani Mobile Architect</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Prevents the screen from scrolling while you draw */
+        body { overflow: hidden; position: fixed; width: 100%; height: 100%; }
+        canvas { 
+            border: 3px solid #4f46e5; 
+            background: #fff; 
+            touch-action: none; 
+            image-rendering: crisp-edges;
+        }
+        .cursor-pointer { cursor: pointer; }
+        .letter-btn { min-width: 45px; height: 45px; }
+        .active-l { background: #4f46e5 !important; color: white; }
+    </style>
+</head>
+<body class="bg-slate-100 flex flex-col h-screen w-full">
+
+    <div class="bg-slate-900 p-4 text-white flex justify-between items-center w-full">
+        <div>
+            <h1 class="font-bold text-lg">Noorani Tool</h1>
+            <p class="text-[10px] text-slate-400">Current: <span id="curInfo">A (V1)</span></p>
+        </div>
+        <button onclick="downloadJSON()" class="bg-green-600 px-3 py-1 rounded text-xs font-bold cursor-pointer">EXPORT ALL</button>
+    </div>
+
+    <div id="letterStrip" class="flex gap-2 p-2 overflow-x-auto bg-white border-b w-full">
+        </div>
+
+    <div class="flex-grow flex flex-col items-center justify-center p-4">
+        <canvas id="paint" class="shadow-xl rounded-2xl w-full max-w-[320px] aspect-square"></canvas>
+        
+        <div class="flex gap-4 mt-6 w-full max-w-[320px]">
+            <button onclick="clearCanvas()" class="flex-1 py-3 bg-slate-300 rounded-xl font-bold cursor-pointer">CLEAR</button>
+            <button onclick="saveSymbol()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold cursor-pointer">SAVE DRAWING</button>
+        </div>
+    </div>
+
+    <div class="bg-white border-t p-4 w-full">
+        <div class="flex justify-between items-center mb-4">
+            <span class="text-xs font-bold text-slate-500 uppercase">Select Language Version</span>
+        </div>
+        <div class="grid grid-cols-5 gap-2">
+            <button onclick="setV(1)" class="v-btn py-2 bg-indigo-600 text-white rounded-lg font-bold cursor-pointer">1</button>
+            <button onclick="setV(2)" class="v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer">2</button>
+            <button onclick="setV(3)" class="v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer">3</button>
+            <button onclick="setV(4)" class="v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer">4</button>
+            <button onclick="setV(5)" class="v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer">5</button>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('paint');
+        const ctx = canvas.getContext('2d');
+        let currentL = 'A';
+        let currentV = 1;
+        let isDrawing = false;
+        let storage = {};
+
+        // Adjust canvas resolution for high-DPI mobile screens
+        function setupCanvas() {
+            const size = canvas.clientWidth;
+            canvas.width = size;
+            canvas.height = size;
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            ctx.strokeStyle = '#1e293b';
+        }
+
+        // --- Touch & Mouse Events ---
+        function getPos(e) {
+            const rect = canvas.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function start(e) { isDrawing = true; draw(e); }
+        function stop() { isDrawing = false; ctx.beginPath(); }
+
+        function draw(e) {
+            if (!isDrawing) return;
+            const pos = getPos(e);
+            ctx.lineTo(pos.x, pos.y);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(pos.x, pos.y);
+        }
+
+        canvas.addEventListener('touchstart', start);
+        canvas.addEventListener('touchend', stop);
+        canvas.addEventListener('touchmove', (e) => { e.preventDefault(); draw(e); }, {passive: false});
+        canvas.addEventListener('mousedown', start);
+        canvas.addEventListener('mouseup', stop);
+        canvas.addEventListener('mousemove', draw);
+
+        // --- Logic ---
+        const strip = document.getElementById('letterStrip');
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(char => {
+            const b = document.createElement('button');
+            b.innerText = char;
+            b.id = "btn-"+char;
+            b.className = "letter-btn flex-shrink-0 bg-slate-100 rounded-lg font-bold cursor-pointer transition-all";
+            b.onclick = () => selectL(char);
+            strip.appendChild(b);
+        });
+
+        function selectL(char) {
+            currentL = char;
+            document.querySelectorAll('.letter-btn').forEach(btn => btn.classList.remove('active-l'));
+            document.getElementById('btn-'+char).classList.add('active-l');
+            updateUI();
+        }
+
+        function setV(v) {
+            currentV = v;
+            document.querySelectorAll('.v-btn').forEach((btn, i) => {
+                btn.className = (i+1 === v) ? "v-btn py-2 bg-indigo-600 text-white rounded-lg font-bold cursor-pointer" : "v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer";
+            });
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById('curInfo').innerText = `${currentL} (Version ${currentV})`;
+            clearCanvas();
+        }
+
+        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+        function saveSymbol() {
+            if(!storage[currentL]) storage[currentL] = {};
+            storage[currentL][currentV] = canvas.toDataURL();
+            alert(`Saved: ${currentL} V${currentV}`);
+        }
+
+        function downloadJSON() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(storage));
+            const dlAnchorElem = document.createElement('a');
+            dlAnchorElem.setAttribute("href", dataStr);
+            dlAnchorElem.setAttribute("download", "noorani_font_data.json");
+            dlAnchorElem.click();
+        }
+
+        window.onload = () => { setupCanvas(); selectL('A'); };
+    </script>
+</body>
+</html>
