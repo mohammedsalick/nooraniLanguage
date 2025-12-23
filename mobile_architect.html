@@ -6,7 +6,6 @@
     <title>Noorani Mobile Architect</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Prevents the screen from scrolling while you draw */
         body { overflow: hidden; position: fixed; width: 100%; height: 100%; }
         canvas { 
             border: 3px solid #4f46e5; 
@@ -17,6 +16,15 @@
         .cursor-pointer { cursor: pointer; }
         .letter-btn { min-width: 45px; height: 45px; }
         .active-l { background: #4f46e5 !important; color: white; }
+        .saved-indicator { 
+            position: absolute; 
+            top: 2px; 
+            right: 2px; 
+            width: 8px; 
+            height: 8px; 
+            background: #10b981; 
+            border-radius: 50%;
+        }
     </style>
 </head>
 <body class="bg-slate-100 flex flex-col h-screen w-full">
@@ -25,12 +33,18 @@
         <div>
             <h1 class="font-bold text-lg">Noorani Tool</h1>
             <p class="text-[10px] text-slate-400">Current: <span id="curInfo">A (V1)</span></p>
+            <p class="text-[10px] text-green-400">Saved: <span id="savedCount">0/130</span></p>
         </div>
-        <button onclick="downloadJSON()" class="bg-green-600 px-3 py-1 rounded text-xs font-bold cursor-pointer">EXPORT ALL</button>
+        <div class="flex gap-2">
+            <label class="bg-blue-600 px-3 py-1 rounded text-xs font-bold cursor-pointer">
+                IMPORT
+                <input type="file" id="importFile" accept=".json" class="hidden" onchange="importJSON(event)">
+            </label>
+            <button onclick="downloadJSON()" class="bg-green-600 px-3 py-1 rounded text-xs font-bold cursor-pointer">EXPORT ALL</button>
+        </div>
     </div>
 
-    <div id="letterStrip" class="flex gap-2 p-2 overflow-x-auto bg-white border-b w-full">
-        </div>
+    <div id="letterStrip" class="flex gap-2 p-2 overflow-x-auto bg-white border-b w-full"></div>
 
     <div class="flex-grow flex flex-col items-center justify-center p-4">
         <canvas id="paint" class="shadow-xl rounded-2xl w-full max-w-[320px] aspect-square"></canvas>
@@ -39,6 +53,12 @@
             <button onclick="clearCanvas()" class="flex-1 py-3 bg-slate-300 rounded-xl font-bold cursor-pointer">CLEAR</button>
             <button onclick="saveSymbol()" class="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold cursor-pointer">SAVE DRAWING</button>
         </div>
+        
+        <div class="mt-4 text-center">
+            <p class="text-xs text-slate-500">
+                Status: <span id="saveStatus" class="font-bold text-red-600">Not Saved</span>
+            </p>
+        </div>
     </div>
 
     <div class="bg-white border-t p-4 w-full">
@@ -46,11 +66,21 @@
             <span class="text-xs font-bold text-slate-500 uppercase">Select Language Version</span>
         </div>
         <div class="grid grid-cols-5 gap-2">
-            <button onclick="setV(1)" class="v-btn py-2 bg-indigo-600 text-white rounded-lg font-bold cursor-pointer">1</button>
-            <button onclick="setV(2)" class="v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer">2</button>
-            <button onclick="setV(3)" class="v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer">3</button>
-            <button onclick="setV(4)" class="v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer">4</button>
-            <button onclick="setV(5)" class="v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer">5</button>
+            <button onclick="setV(1)" class="v-btn py-2 bg-indigo-600 text-white rounded-lg font-bold cursor-pointer relative">
+                1 <span id="v1-check" class="hidden absolute top-1 right-1 text-green-400">✓</span>
+            </button>
+            <button onclick="setV(2)" class="v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer relative">
+                2 <span id="v2-check" class="hidden absolute top-1 right-1 text-green-400">✓</span>
+            </button>
+            <button onclick="setV(3)" class="v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer relative">
+                3 <span id="v3-check" class="hidden absolute top-1 right-1 text-green-400">✓</span>
+            </button>
+            <button onclick="setV(4)" class="v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer relative">
+                4 <span id="v4-check" class="hidden absolute top-1 right-1 text-green-400">✓</span>
+            </button>
+            <button onclick="setV(5)" class="v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer relative">
+                5 <span id="v5-check" class="hidden absolute top-1 right-1 text-green-400">✓</span>
+            </button>
         </div>
     </div>
 
@@ -62,7 +92,6 @@
         let isDrawing = false;
         let storage = {};
 
-        // Adjust canvas resolution for high-DPI mobile screens
         function setupCanvas() {
             const size = canvas.clientWidth;
             canvas.width = size;
@@ -72,7 +101,6 @@
             ctx.strokeStyle = '#1e293b';
         }
 
-        // --- Touch & Mouse Events ---
         function getPos(e) {
             const rect = canvas.getBoundingClientRect();
             const clientX = e.touches ? e.touches[0].clientX : e.clientX;
@@ -99,15 +127,19 @@
         canvas.addEventListener('mouseup', stop);
         canvas.addEventListener('mousemove', draw);
 
-        // --- Logic ---
         const strip = document.getElementById('letterStrip');
         "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("").forEach(char => {
+            const wrapper = document.createElement('div');
+            wrapper.className = "relative";
+            
             const b = document.createElement('button');
             b.innerText = char;
             b.id = "btn-"+char;
-            b.className = "letter-btn flex-shrink-0 bg-slate-100 rounded-lg font-bold cursor-pointer transition-all";
+            b.className = "letter-btn flex-shrink-0 bg-slate-100 rounded-lg font-bold cursor-pointer transition-all w-full";
             b.onclick = () => selectL(char);
-            strip.appendChild(b);
+            
+            wrapper.appendChild(b);
+            strip.appendChild(wrapper);
         });
 
         function selectL(char) {
@@ -120,22 +152,82 @@
         function setV(v) {
             currentV = v;
             document.querySelectorAll('.v-btn').forEach((btn, i) => {
-                btn.className = (i+1 === v) ? "v-btn py-2 bg-indigo-600 text-white rounded-lg font-bold cursor-pointer" : "v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer";
+                btn.className = (i+1 === v) ? "v-btn py-2 bg-indigo-600 text-white rounded-lg font-bold cursor-pointer relative" : "v-btn py-2 bg-slate-200 rounded-lg font-bold cursor-pointer relative";
             });
             updateUI();
         }
 
         function updateUI() {
             document.getElementById('curInfo').innerText = `${currentL} (Version ${currentV})`;
-            clearCanvas();
+            
+            // Update version checkmarks
+            for(let v = 1; v <= 5; v++) {
+                const check = document.getElementById(`v${v}-check`);
+                if(storage[currentL] && storage[currentL][v]) {
+                    check.classList.remove('hidden');
+                } else {
+                    check.classList.add('hidden');
+                }
+            }
+            
+            // Load saved drawing if exists
+            loadDrawing();
+            
+            // Update save status
+            updateSaveStatus();
+            
+            // Update total saved count
+            updateSavedCount();
         }
 
-        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+        function loadDrawing() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            if(storage[currentL] && storage[currentL][currentV]) {
+                const img = new Image();
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                };
+                img.src = storage[currentL][currentV];
+            }
+        }
+
+        function updateSaveStatus() {
+            const status = document.getElementById('saveStatus');
+            if(storage[currentL] && storage[currentL][currentV]) {
+                status.innerText = "✓ Saved";
+                status.className = "font-bold text-green-600";
+            } else {
+                status.innerText = "Not Saved";
+                status.className = "font-bold text-red-600";
+            }
+        }
+
+        function updateSavedCount() {
+            let count = 0;
+            for(let letter in storage) {
+                for(let version in storage[letter]) {
+                    count++;
+                }
+            }
+            document.getElementById('savedCount').innerText = `${count}/130`;
+        }
+
+        function clearCanvas() { 
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
+            updateSaveStatus();
+        }
 
         function saveSymbol() {
             if(!storage[currentL]) storage[currentL] = {};
             storage[currentL][currentV] = canvas.toDataURL();
-            alert(`Saved: ${currentL} V${currentV}`);
+            updateSaveStatus();
+            updateSavedCount();
+            
+            // Update version checkmark
+            document.getElementById(`v${currentV}-check`).classList.remove('hidden');
+            
+            alert(`✓ Saved: ${currentL} Version ${currentV}`);
         }
 
         function downloadJSON() {
@@ -144,9 +236,30 @@
             dlAnchorElem.setAttribute("href", dataStr);
             dlAnchorElem.setAttribute("download", "noorani_font_data.json");
             dlAnchorElem.click();
+            alert('Font data exported successfully!');
         }
 
-        window.onload = () => { setupCanvas(); selectL('A'); };
+        function importJSON(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    storage = JSON.parse(e.target.result);
+                    updateUI();
+                    alert('Font data imported successfully!');
+                } catch(err) {
+                    alert('Error importing file. Please check the file format.');
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        window.onload = () => { 
+            setupCanvas(); 
+            selectL('A'); 
+        };
     </script>
 </body>
 </html>
