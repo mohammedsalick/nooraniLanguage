@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noorani Font Architect</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        canvas { border: 2px solid #cbd5e1; background: white; touch-action: none; cursor: crosshair; }
+        .cursor-pointer { cursor: pointer; }
+        .active-letter { background-color: #4f46e5 !important; color: white; }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen p-4">
+
+    <div class="max-w-6xl mx-auto w-full bg-white shadow-2xl rounded-3xl overflow-hidden border border-slate-200">
+        <div class="bg-slate-900 p-6 text-white flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold">Noorani Training Tool</h1>
+                <p class="text-xs text-slate-400">Draw each symbol to train the translator</p>
+            </div>
+            <div class="flex gap-4">
+                <button onclick="exportData()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg font-bold text-sm cursor-pointer transition-all">GENERATE TRANSLATOR CODE</button>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-0 h-[80vh]">
+            <div class="col-span-1 bg-slate-100 border-r overflow-y-auto p-4 flex flex-wrap gap-2 content-start">
+                <div class="w-full mb-2 font-bold text-slate-500 text-xs uppercase tracking-widest">Select Letter</div>
+                <div id="letterGrid" class="grid grid-cols-4 gap-2 w-full"></div>
+            </div>
+
+            <div class="col-span-3 p-8 flex flex-col items-center justify-center bg-slate-50">
+                <div class="flex gap-8 mb-6">
+                    <div class="text-center">
+                        <span class="block text-sm font-bold text-slate-400 mb-2">DRAW LETTER <span id="currentTitle" class="text-indigo-600">A</span> - VERSION <span id="currentVer">1</span></span>
+                        <canvas id="paint" width="250" height="250" class="rounded-xl shadow-inner"></canvas>
+                        <div class="mt-4 flex gap-2 justify-center">
+                            <button onclick="clearCanvas()" class="bg-slate-200 px-4 py-2 rounded-lg text-sm font-bold cursor-pointer">Clear</button>
+                            <button onclick="saveCurrent()" class="bg-indigo-600 text-white px-6 py-2 rounded-lg text-sm font-bold cursor-pointer">Save Symbol</button>
+                        </div>
+                    </div>
+                    
+                    <div class="flex flex-col gap-2 justify-center">
+                        <button onclick="setVer(1)" id="v1" class="v-btn bg-indigo-600 text-white px-4 py-2 rounded-lg text-xs font-bold cursor-pointer">V1</button>
+                        <button onclick="setVer(2)" id="v2" class="v-btn bg-slate-200 px-4 py-2 rounded-lg text-xs font-bold cursor-pointer">V2</button>
+                        <button onclick="setVer(3)" id="v3" class="v-btn bg-slate-200 px-4 py-2 rounded-lg text-xs font-bold cursor-pointer">V3</button>
+                        <button onclick="setVer(4)" id="v4" class="v-btn bg-slate-200 px-4 py-2 rounded-lg text-xs font-bold cursor-pointer">V4</button>
+                        <button onclick="setVer(5)" id="v5" class="v-btn bg-slate-200 px-4 py-2 rounded-lg text-xs font-bold cursor-pointer">V5</button>
+                    </div>
+                </div>
+
+                <div class="w-full mt-10 p-4 border-t border-slate-200">
+                    <h3 class="text-center text-xs font-bold text-slate-400 uppercase mb-4">Saved symbols for letter <span id="prevLetter">A</span></h3>
+                    <div id="previews" class="flex justify-center gap-4">
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('paint');
+        const ctx = canvas.getContext('2d');
+        let drawing = false;
+        let currentLetter = 'a';
+        let currentVersion = 1;
+        let database = {}; // Stores all drawings
+
+        // Initialize Canvas
+        ctx.lineWidth = 4;
+        ctx.lineCap = 'round';
+        ctx.strokeStyle = '#1e293b';
+
+        canvas.addEventListener('mousedown', () => drawing = true);
+        canvas.addEventListener('mouseup', () => { drawing = false; ctx.beginPath(); });
+        canvas.addEventListener('mousemove', draw);
+
+        function draw(e) {
+            if (!drawing) return;
+            const rect = canvas.getBoundingClientRect();
+            ctx.lineTo(e.clientX - rect.left, e.clientY - rect.top);
+            ctx.stroke();
+            ctx.beginPath();
+            ctx.moveTo(e.clientX - rect.left, e.clientY - rect.top);
+        }
+
+        // Setup Alphabet
+        const letters = "abcdefghijklmnopqrstuvwxyz".split("");
+        const grid = document.getElementById('letterGrid');
+        letters.forEach(l => {
+            const btn = document.createElement('button');
+            btn.innerText = l.toUpperCase();
+            btn.id = 'btn-' + l;
+            btn.className = "p-2 bg-white border border-slate-300 rounded font-bold text-sm cursor-pointer hover:bg-indigo-50";
+            btn.onclick = () => setLetter(l);
+            grid.appendChild(btn);
+        });
+
+        function setLetter(l) {
+            currentLetter = l;
+            document.querySelectorAll('#letterGrid button').forEach(b => b.classList.remove('active-letter'));
+            document.getElementById('btn-' + l).classList.add('active-letter');
+            document.getElementById('currentTitle').innerText = l.toUpperCase();
+            document.getElementById('prevLetter').innerText = l.toUpperCase();
+            clearCanvas();
+            updatePreviews();
+        }
+
+        function setVer(v) {
+            currentVersion = v;
+            document.querySelectorAll('.v-btn').forEach(b => { b.classList.remove('bg-indigo-600', 'text-white'); b.classList.add('bg-slate-200'); });
+            document.getElementById('v' + v).classList.add('bg-indigo-600', 'text-white');
+            document.getElementById('currentVer').innerText = v;
+            clearCanvas();
+        }
+
+        function clearCanvas() { ctx.clearRect(0, 0, canvas.width, canvas.height); }
+
+        function saveCurrent() {
+            const dataURL = canvas.toDataURL('image/png');
+            if (!database[currentLetter]) database[currentLetter] = {};
+            database[currentLetter][currentVersion] = dataURL;
+            updatePreviews();
+            alert(`Saved ${currentLetter.toUpperCase()} Version ${currentVersion}`);
+        }
+
+        function updatePreviews() {
+            const container = document.getElementById('previews');
+            container.innerHTML = '';
+            for(let i=1; i<=5; i++) {
+                const img = document.createElement('img');
+                img.className = "w-16 h-16 border bg-white rounded p-1";
+                img.src = (database[currentLetter] && database[currentLetter][i]) ? database[currentLetter][i] : 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=';
+                container.appendChild(img);
+            }
+        }
+
+        function exportData() {
+            console.log("Database Exported:", database);
+            alert("Check Browser Console (F12) for the data. You can now use these images in your translator website!");
+        }
+
+        // Init
+        setLetter('a');
+    </script>
+</body>
+</html>

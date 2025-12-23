@@ -1,0 +1,219 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Noorani Script - 5 Language Master</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Symbol Styling */
+        .symbol-box {
+            width: 50px;
+            height: 50px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        svg {
+            width: 42px;
+            height: 42px;
+            stroke: #1e293b;
+            stroke-width: 2.2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+        .dot { fill: #ef4444; stroke: none; }
+        .arrow-head { fill: #1e293b; stroke: none; }
+        
+        /* Cursor Pointer implementation as requested */
+        .cursor-pointer { cursor: pointer !important; }
+        
+        /* Glassmorphism Effect */
+        .glass {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+    </style>
+</head>
+<body class="bg-slate-200 min-h-screen p-4 md:p-10 flex flex-col items-center">
+
+    <div class="w-full max-w-6xl glass rounded-3xl shadow-2xl overflow-hidden">
+        <header class="bg-slate-900 p-8 text-white text-center">
+            <h1 class="text-4xl font-extrabold tracking-tighter mb-2">NOORANI SCRIPT MASTER</h1>
+            <p class="text-slate-400 font-medium">Official 5-Language Geometric Translator</p>
+        </header>
+
+        <nav class="bg-white border-b flex flex-wrap justify-center gap-2 p-4">
+            <button onclick="setVersion(1)" id="btn1" class="v-btn px-6 py-2 rounded-full bg-indigo-600 text-white font-bold cursor-pointer transition-all">V1: Basic</button>
+            <button onclick="setVersion(2)" id="btn2" class="v-btn px-6 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition-all">V2: Diagonals</button>
+            <button onclick="setVersion(3)" id="btn3" class="v-btn px-6 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition-all">V3: Geometry</button>
+            <button onclick="setVersion(4)" id="btn4" class="v-btn px-6 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition-all">V4: Arrows</button>
+            <button onclick="setVersion(5)" id="btn5" class="v-btn px-6 py-2 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold cursor-pointer transition-all">V5: Complex</button>
+        </nav>
+
+        <main class="p-6 md:p-10 grid grid-cols-1 lg:grid-cols-2 gap-10">
+            <div class="w-full">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-slate-700 uppercase tracking-widest">English Input</h2>
+                    <span class="text-xs text-slate-400">Real-time Translation</span>
+                </div>
+                <textarea id="engText" class="w-full h-80 p-6 text-xl bg-white border-2 border-slate-200 rounded-2xl focus:ring-4 focus:ring-indigo-100 focus:border-indigo-500 transition-all outline-none shadow-inner" placeholder="Enter text to translate..."></textarea>
+            </div>
+
+            <div class="w-full">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-lg font-bold text-slate-700 uppercase tracking-widest">Noorani Output (<span id="currentV">V1</span>)</h2>
+                    <button onclick="downloadAsImage()" class="text-indigo-600 text-sm font-bold hover:underline cursor-pointer">EXPORT IMAGE</button>
+                </div>
+                <div id="nooraniView" class="w-full h-80 p-8 bg-white border-2 border-slate-200 rounded-2xl overflow-y-auto flex flex-wrap gap-2 content-start shadow-inner">
+                    <div class="text-slate-300 italic">Noorani symbols will appear as you type...</div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="p-6 bg-slate-50 border-t flex flex-col md:flex-row justify-between items-center gap-4">
+            <button onclick="clearText()" class="px-8 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl font-bold shadow-lg transition-all cursor-pointer">CLEAR ALL</button>
+            <p class="text-slate-400 text-sm italic">Exact geometric rendering based on handwritten input grid © 2025</p>
+        </footer>
+    </div>
+
+    <script>
+        let activeVersion = 1;
+
+        // Path Data for the Symbols (Geometric Matrix)
+        // Core shapes defined for the first letter of each row
+        const paths = {
+            'a': 'M10 10 v20 h20', // Bottom-left corner
+            'b': 'M10 10 v20 h20', // Same + dot/line
+            'c': 'M8 10 v20 h22 v-20', // U-shape
+            'd': 'M8 10 v20 h22 v-20', 
+            'e': 'M10 10 h20 v20', // Top-right corner
+            'f': 'M10 10 h20 v20',
+            'g': 'M30 10 h-20 v20 h20', // C-shape
+            'h': 'M30 10 h-20 v20 h20',
+            'i': 'M10 10 h20 v20 h-20 Z', // Square
+            'j': 'M10 10 h20 v20 h-20 Z',
+            'k': 'M30 10 h-20 v20 h20', // Open Right Square
+            'l': 'M30 10 h-20 v20 h20',
+            'm': 'M10 30 v-20 h20', // Top-left corner
+            'n': 'M10 30 v-20 h20',
+            'o': 'M10 30 h20 v-20 h-20', // Open Bottom Square
+            'p': 'M10 30 h20 v-20 h-20',
+            'q': 'M15 10 v20', // Vertical Bar
+            'r': 'M15 10 v20',
+            's': 'M10 10 l20 10 l-20 10', // >
+            't': 'M10 10 l20 10 l-20 10',
+            'u': 'M10 10 l10 20 l10 -20', // V
+            'v': 'M10 10 l10 20 l10 -20',
+            'w': 'M30 10 l-20 10 l20 10', // <
+            'x': 'M30 10 l-20 10 l20 10',
+            'y': 'M10 30 l10 -20 l10 20', // ^
+            'z': 'M10 30 l10 -20 l10 20',
+            ' ': '' 
+        };
+
+        // Decorations per version
+        const decorations = {
+            1: (char) => isDotted(char) ? '<circle cx="20" cy="20" r="2.5" class="dot"/>' : '',
+            2: (char) => isDotted(char) ? '<path d="M10 30 l10 -10" stroke-width="2"/>' : '',
+            3: (char) => isDotted(char) ? '<path d="M10 10 l20 20" stroke-width="1.5"/>' : '',
+            4: (char) => isDotted(char) ? '<path d="M20 20 l-5 -5 m5 5 l-5 5" stroke-width="2"/>' : '',
+            5: (char) => isDotted(char) ? '<path d="M15 15 l10 10 m0 -10 l-10 10" stroke-width="3"/>' : ''
+        };
+
+        // Logic to determine if a letter is the 'dotted' version (B, D, F, etc)
+        function isDotted(char) {
+            return "bdfhjlmnoprtvxz".includes(char);
+        }
+
+        const input = document.getElementById('engText');
+        const output = document.getElementById('nooraniView');
+
+        function setVersion(v) {
+            activeVersion = v;
+            document.querySelectorAll('.v-btn').forEach(b => {
+                b.classList.remove('bg-indigo-600', 'text-white');
+                b.classList.add('bg-slate-100', 'text-slate-700');
+            });
+            document.getElementById(`btn${v}`).classList.replace('bg-slate-100', 'bg-indigo-600');
+            document.getElementById(`btn${v}`).classList.replace('text-slate-700', 'text-white');
+            document.getElementById('currentV').innerText = `V${v}`;
+            translate();
+        }
+
+        function translate() {
+            const text = input.value.toLowerCase();
+            if(!text) {
+                output.innerHTML = '<div class="text-slate-300 italic">Noorani symbols will appear as you type...</div>';
+                return;
+            }
+            output.innerHTML = '';
+            [...text].forEach(char => {
+                if(paths[char] !== undefined) {
+                    const div = document.createElement('div');
+                    div.className = 'symbol-box';
+                    if(char === ' ') {
+                        div.style.width = '30px';
+                    } else {
+                        div.innerHTML = `<svg viewBox="0 0 40 40">
+                            <path d="${paths[char]}" />
+                            ${decorations[activeVersion](char)}
+                        </svg>`;
+                    }
+                    output.appendChild(div);
+                } else if(char === '\n') {
+                    output.innerHTML += '<div class="w-full"></div>';
+                }
+            });
+        }
+
+        input.addEventListener('input', translate);
+
+        function clearText() {
+            input.value = '';
+            translate();
+        }
+
+        function downloadAsImage() {
+            alert("To export as high-res: Please use Print (Ctrl+P) and Save as PDF, or take a screenshot of the output area!");
+        }
+    </script>
+</body>
+</html> -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Noorani Language Translator</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<div class="container">
+    <h1>Noorani Language Translator</h1>
+
+    <textarea id="inputText" placeholder="Type English text here..."></textarea>
+
+    <select id="language">
+        <option value="1">Noorani Language 1</option>
+        <option value="2">Noorani Language 2</option>
+        <option value="3">Noorani Language 3</option>
+        <option value="4">Noorani Language 4</option>
+        <option value="5">Noorani Language 5</option>
+    </select>
+
+    <button onclick="translateText()">Translate</button>
+
+    <textarea id="outputText" placeholder="Translated output..." readonly></textarea>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
